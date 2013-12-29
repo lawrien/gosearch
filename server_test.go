@@ -1,27 +1,33 @@
 package gosearch
 
 import (
-	"fmt"
+	. "launchpad.net/gocheck"
 	"testing"
 )
 
-func TestConnect(t *testing.T) {
-	server := ConnectURL("http://localhost:9200")
+// Start of setup
+type serverSuite struct{}
 
-	if status, err := server.Status(); err != nil {
-		fmt.Printf("Failed with %s\n", err)
-	} else {
-		fmt.Printf("Succeeded %s\n", status)
-	}
+func TestServer(t *testing.T) {
+	Suite(&serverSuite{})
+	TestingT(t)
 }
 
-func BenchmarkConnect(b *testing.B) {
+func (s *serverSuite) TestConnect(c *C) {
 	server := ConnectURL("http://localhost:9200")
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if status, err := server.Status(); err != nil || status.Status != 200 {
-			fmt.Printf("Failed with %s\n", err)
-		}
+	status, err := server.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status.Status, Equals, 200)
+}
+
+func (s *serverSuite) BenchmarkConnect(c *C) {
+	server := ConnectURL("http://localhost:9200")
+
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
+		status, err := server.Status()
+		c.Assert(err, IsNil)
+		c.Assert(status.Status, Equals, 200)
 	}
 }
