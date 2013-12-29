@@ -31,12 +31,13 @@ func ConnectURL(url string) *Server {
 
 func (self *Server) do(method, cmd string, body io.Reader) (*http.Response, error) {
 	var url string
-	if cmd != "" {
+	if cmd == "" {
 		url = self.url
 	} else {
 		url = fmt.Sprintf("%s/%s", self.url, cmd)
 	}
 
+	fmt.Printf("Command => %s:%s\n", method, url)
 	if req, err := http.NewRequest(method, url, body); err != nil {
 		return nil, err
 	} else {
@@ -61,6 +62,10 @@ func (self *Server) Delete(cmd string) (*http.Response, error) {
 	return self.do("DELETE", cmd, nil)
 }
 
+func (self *Server) Head(cmd string) (*http.Response, error) {
+	return self.do("HEAD", cmd, nil)
+}
+
 func (self *Server) Status() (*Status, error) {
 	status := &Status{}
 
@@ -75,39 +80,41 @@ func (self *Server) Status() (*Status, error) {
 	}
 }
 
-func (self *Server) HasIndex(index string) error {
+func (self *Server) HasIndex(index string) bool {
 
-	if resp, err := self.Get(index); err != nil {
-		return err
-	} else if resp.StatusCode > 399 {
-		return fmt.Errorf("Response status %s", resp.Status)
+	if resp, err := self.Head(index); err != nil {
+		// FIXME Log error
+		return false
 	} else {
-		fmt.Printf("Response => %s\n", resp)
-		defer resp.Body.Close()
-		return nil
+		return resp.StatusCode == 200
 	}
 }
 
-func (self *Server) CreateIndex(index string, body io.Reader) error {
+func (self *Server) CreateIndex(index string) bool {
 
-	if resp, err := self.Put(index, body); err != nil {
-		return err
-	} else if resp.StatusCode > 399 {
-		return fmt.Errorf("Response status %s", resp.Status)
+	if resp, err := self.Put(index, nil); err != nil {
+		// FIXME Log error
+		return false
 	} else {
-		defer resp.Body.Close()
-		return nil
+		return resp.StatusCode == 200
 	}
 }
 
-func (self *Server) DeleteIndex(index string) error {
+func (self *Server) CreateIndexWithSettings(index string, settings io.Reader) bool {
+	if resp, err := self.Put(index, settings); err != nil {
+		// FIXME Log error
+		return false
+	} else {
+		return resp.StatusCode == 200
+	}
+}
+
+func (self *Server) DeleteIndex(index string) bool {
 
 	if resp, err := self.Delete(index); err != nil {
-		return err
-	} else if resp.StatusCode > 399 {
-		return fmt.Errorf("Response status %s", resp.Status)
+		// FIXME Log error
+		return false
 	} else {
-		defer resp.Body.Close()
-		return nil
+		return resp.StatusCode == 200
 	}
 }

@@ -2,18 +2,19 @@ package gosearch
 
 import (
 	. "launchpad.net/gocheck"
+	"strings"
 	"testing"
 )
 
 // Start of setup
-type serverSuite struct{}
+type ServerSuite struct{}
 
 func TestServer(t *testing.T) {
-	Suite(&serverSuite{})
+	Suite(&ServerSuite{})
 	TestingT(t)
 }
 
-func (s *serverSuite) TestConnect(c *C) {
+func (s *ServerSuite) TestConnect(c *C) {
 	server := ConnectURL("http://localhost:9200")
 
 	status, err := server.Status()
@@ -21,7 +22,7 @@ func (s *serverSuite) TestConnect(c *C) {
 	c.Assert(status.Status, Equals, 200)
 }
 
-func (s *serverSuite) BenchmarkConnect(c *C) {
+func (s *ServerSuite) BenchmarkConnect(c *C) {
 	server := ConnectURL("http://localhost:9200")
 
 	c.ResetTimer()
@@ -30,4 +31,42 @@ func (s *serverSuite) BenchmarkConnect(c *C) {
 		c.Assert(err, IsNil)
 		c.Assert(status.Status, Equals, 200)
 	}
+}
+
+func (s *ServerSuite) TestHasIndex(c *C) {
+	server := ConnectURL("http://localhost:9200")
+
+	b := server.HasIndex("index_does_not_exist")
+	c.Assert(b, Equals, false)
+}
+
+func (s *ServerSuite) TestCreateIndex(c *C) {
+	server := ConnectURL("http://localhost:9200")
+
+	b := server.CreateIndex("test_index")
+	c.Assert(b, Equals, true)
+	c.Assert(server.HasIndex("test_index"), Equals, true)
+	server.DeleteIndex("test_index")
+}
+
+func (s *ServerSuite) TestCreateIndexWithMapping(c *C) {
+	server := ConnectURL("http://localhost:9200")
+
+	settings := `{
+      "mappings" : {
+        "type1" : {
+          "properties" : {
+            "field1" : { "type" : "string", "index" : "not_analyzed" }
+          }
+        }
+      }
+    }`
+
+	reader := strings.NewReader(settings)
+
+	b := server.CreateIndexWithSettings("test_mapping_index", reader)
+	c.Assert(b, Equals, true)
+	c.Assert(server.HasIndex("test_mapping_index"), Equals, true)
+	// server.DeleteIndex("test_index")
+
 }
