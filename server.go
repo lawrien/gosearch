@@ -118,3 +118,90 @@ func (self *Server) DeleteIndex(index string) bool {
 		return resp.StatusCode == 200
 	}
 }
+
+type Document struct {
+	Type    string
+	Id      string
+	Version float64
+	Exists  bool
+	Source  interface{}
+}
+
+func (self *Document) UnmarshalJSON(data []byte) error {
+	var objmap map[string]*json.RawMessage
+
+	if err := json.Unmarshal(data, &objmap); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(*objmap["_type"], &self.Type); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(*objmap["_id"], &self.Id); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(*objmap["exists"], &self.Exists); err != nil {
+		return err
+	}
+
+	if _, ok := objmap["_source"]; ok {
+		if err := json.Unmarshal(*objmap["_source"], &self.Source); err != nil {
+			return err
+		}
+	} else {
+		if err := json.Unmarshal(*objmap["fields"], &self.Source); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (self *Server) PutDocument(index string, doctype string, id string, doc io.Reader) bool {
+	cmd := fmt.Sprintf("%s/%s/%s", index, doctype, id)
+
+	if resp, err := self.Post(cmd, doc); err != nil {
+		// FIXME Log error
+		return false
+	} else {
+		return resp.StatusCode == 200 || resp.StatusCode == 201
+	}
+}
+
+func (self *Server) GetDocument(index string, doctype string, id string) *Document {
+	return self.GetDocumentFields(index, doctype, id, "")
+}
+
+func (self *Server) GetDocumentFields(index string, doctype string, id string, fields string) *Document {
+	var cmd string
+	doc := &Document{Type: doctype, Id: id, Exists: false}
+
+	if fields == "" {
+		cmd = fmt.Sprintf("%s/%s/%s", index, doctype, id)
+	} else {
+		cmd = fmt.Sprintf("%s/%s/%s?fields=%s", index, doctype, id, fields)
+	}
+
+	if resp, err := self.Get(cmd); err != nil {
+		// FIXME Log error
+		return nil
+	} else {
+		switch resp.StatusCode {
+		case 200:
+			if err := json.NewDecoder(resp.Body).Decode(doc); err != nil {
+				// FIXME Log error
+				return nil
+			}
+			return doc
+		case 404:
+			return doc
+		default:
+			return nil
+		}
+	}
+}

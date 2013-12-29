@@ -1,6 +1,8 @@
 package gosearch
 
 import (
+	"encoding/json"
+	"fmt"
 	. "launchpad.net/gocheck"
 	"strings"
 	"testing"
@@ -67,6 +69,56 @@ func (s *ServerSuite) TestCreateIndexWithMapping(c *C) {
 	b := server.CreateIndexWithSettings("test_mapping_index", reader)
 	c.Assert(b, Equals, true)
 	c.Assert(server.HasIndex("test_mapping_index"), Equals, true)
-	// server.DeleteIndex("test_index")
+	server.DeleteIndex("test_index")
 
+}
+
+func (s *ServerSuite) TestCreateDocument(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
+
+	server.CreateIndex("test_index")
+	c.Assert(server.HasIndex("test_index"), Equals, true)
+
+	b := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
+	c.Assert(b, Equals, true)
+
+	server.DeleteIndex("test_index")
+
+}
+
+func (s *ServerSuite) TestGetDocumentSource(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
+
+	server.CreateIndex("test_index")
+	c.Assert(server.HasIndex("test_index"), Equals, true)
+
+	b := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
+	c.Assert(b, Equals, true)
+
+	d := server.GetDocument("test_index", "person", "1")
+	c.Assert(d, NotNil)
+	c.Assert(d.Exists, Equals, true)
+	bytes, _ := json.Marshal(d)
+	fmt.Printf("Document => %s\n", string(bytes))
+	server.DeleteIndex("test_index")
+}
+
+func (s *ServerSuite) TestGetDocumentFields(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
+
+	server.CreateIndex("test_index")
+	c.Assert(server.HasIndex("test_index"), Equals, true)
+
+	b := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
+	c.Assert(b, Equals, true)
+
+	d := server.GetDocumentFields("test_index", "person", "1", "name")
+	c.Assert(d, NotNil)
+	c.Assert(d.Exists, Equals, true)
+	bytes, _ := json.Marshal(d)
+	fmt.Printf("Document => %s\n", string(bytes))
+	server.DeleteIndex("test_index")
 }
