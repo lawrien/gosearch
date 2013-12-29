@@ -69,7 +69,7 @@ func (s *ServerSuite) TestCreateIndexWithMapping(c *C) {
 	b := server.CreateIndexWithSettings("test_mapping_index", reader)
 	c.Assert(b, Equals, true)
 	c.Assert(server.HasIndex("test_mapping_index"), Equals, true)
-	server.DeleteIndex("test_index")
+	server.DeleteIndex("test_mapping_index")
 
 }
 
@@ -103,6 +103,23 @@ func (s *ServerSuite) TestGetDocumentSource(c *C) {
 	bytes, _ := json.Marshal(d)
 	fmt.Printf("Document => %s\n", string(bytes))
 	server.DeleteIndex("test_index")
+}
+
+func (s *ServerSuite) BenchmarkGetDocumentSource(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
+
+	server.CreateIndex("benchmark_index")
+	server.PutDocument("benchmark_index", "person", "1", strings.NewReader(doc))
+
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
+		d := server.GetDocument("benchmark_index", "person", "1")
+		c.Assert(d, NotNil)
+		c.Assert(d.Source.(map[string]interface{})["name"], Equals, "George")
+	}
+	c.StopTimer()
+	server.DeleteIndex("benchmark_index")
 }
 
 func (s *ServerSuite) TestGetDocumentFields(c *C) {

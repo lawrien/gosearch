@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type Status struct {
@@ -29,6 +30,15 @@ func ConnectURL(url string) *Server {
 	return es
 }
 
+const DEFAULT_IDLE_TIMEOUT = time.Second
+
+var tr = &http.Transport{
+	DisableKeepAlives:   false,
+	MaxIdleConnsPerHost: 512,
+}
+
+var client = &http.Client{Transport: tr}
+
 func (self *Server) do(method, cmd string, body io.Reader) (*http.Response, error) {
 	var url string
 	if cmd == "" {
@@ -37,11 +47,12 @@ func (self *Server) do(method, cmd string, body io.Reader) (*http.Response, erro
 		url = fmt.Sprintf("%s/%s", self.url, cmd)
 	}
 
-	fmt.Printf("Command => %s:%s\n", method, url)
+	// fmt.Printf("Command => %s:%s\n", method, url)
 	if req, err := http.NewRequest(method, url, body); err != nil {
 		return nil, err
 	} else {
-		return http.DefaultClient.Do(req)
+		// return http.DefaultClient.Do(req)
+		return client.Do(req)
 	}
 
 }
@@ -191,6 +202,7 @@ func (self *Server) GetDocumentFields(index string, doctype string, id string, f
 		// FIXME Log error
 		return nil
 	} else {
+		defer resp.Body.Close()
 		switch resp.StatusCode {
 		case 200:
 			if err := json.NewDecoder(resp.Body).Decode(doc); err != nil {
