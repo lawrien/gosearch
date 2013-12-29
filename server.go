@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )
@@ -31,15 +32,30 @@ func ConnectURL(url string) *Server {
 }
 
 const DEFAULT_IDLE_TIMEOUT = time.Second
+const MAX_CONNECTIONS = 100
+const CONN_TIMEOUT = time.Second
+
+func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
+	return func(netw, addr string) (net.Conn, error) {
+		conn, err := net.DialTimeout(netw, addr, cTimeout)
+		if err != nil {
+			return nil, err
+		}
+		conn.SetDeadline(time.Now().Add(rwTimeout))
+		return conn, nil
+	}
+}
 
 var tr = &http.Transport{
 	DisableKeepAlives:   false,
-	MaxIdleConnsPerHost: 512,
+	MaxIdleConnsPerHost: MAX_CONNECTIONS * 2,
+	Dial:                timeoutDialer(time.Second, CONN_TIMEOUT),
 }
 
 var client = &http.Client{Transport: tr}
+var throttle = make(chan int, MAX_CONNECTIONS)
 
-func (self *Server) do(method, cmd string, body io.Reader) (*http.Response, error) {
+func (self *Server) do(method, cmd string, body io.Reader, fn func(*http.Response) error) error {
 	var url string
 	if cmd == "" {
 		url = self.url
@@ -49,85 +65,92 @@ func (self *Server) do(method, cmd string, body io.Reader) (*http.Response, erro
 
 	// fmt.Printf("Command => %s:%s\n", method, url)
 	if req, err := http.NewRequest(method, url, body); err != nil {
-		return nil, err
+		return err
 	} else {
-		// return http.DefaultClient.Do(req)
-		return client.Do(req)
+		throttle <- 1
+		defer func() { <-throttle }()
+		if resp, err := client.Do(req); err != nil {
+			return err
+		} else {
+			defer resp.Body.Close()
+			return fn(resp)
+		}
 	}
-
 }
 
-func (self *Server) Get(cmd string) (*http.Response, error) {
-	return self.do("GET", cmd, nil)
+func (self *Server) Get(cmd string, fn func(*http.Response) error) error {
+	return self.do("GET", cmd, nil, fn)
 }
 
-func (self *Server) Put(cmd string, body io.Reader) (*http.Response, error) {
-	return self.do("PUT", cmd, body)
+func (self *Server) Put(cmd string, body io.Reader, fn func(*http.Response) error) error {
+	return self.do("PUT", cmd, body, fn)
 }
 
-func (self *Server) Post(cmd string, body io.Reader) (*http.Response, error) {
-	return self.do("POST", cmd, body)
+func (self *Server) Post(cmd string, body io.Reader, fn func(*http.Response) error) error {
+	return self.do("POST", cmd, body, fn)
 }
 
-func (self *Server) Delete(cmd string) (*http.Response, error) {
-	return self.do("DELETE", cmd, nil)
+func (self *Server) Delete(cmd string, fn func(*http.Response) error) error {
+	return self.do("DELETE", cmd, nil, fn)
 }
 
-func (self *Server) Head(cmd string) (*http.Response, error) {
-	return self.do("HEAD", cmd, nil)
+func (self *Server) Head(cmd string, fn func(*http.Response) error) error {
+	return self.do("HEAD", cmd, nil, fn)
 }
 
 func (self *Server) Status() (*Status, error) {
 	status := &Status{}
 
-	if resp, err := self.Get(""); err != nil {
-		return nil, err
-	} else if resp.StatusCode > 399 {
-		return nil, fmt.Errorf("Response status %s", resp.Status)
-	} else {
-		defer resp.Body.Close()
-		err := json.NewDecoder(resp.Body).Decode(status)
-		return status, err
-	}
+	return status, self.Get("", func(resp *http.Response) error {
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return json.NewDecoder(resp.Body).Decode(status)
+		}
+	})
 }
 
 func (self *Server) HasIndex(index string) bool {
 
-	if resp, err := self.Head(index); err != nil {
-		// FIXME Log error
-		return false
-	} else {
-		return resp.StatusCode == 200
-	}
+	return self.Head(index, func(resp *http.Response) error {
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return nil
+		}
+	}) == nil
 }
 
 func (self *Server) CreateIndex(index string) bool {
 
-	if resp, err := self.Put(index, nil); err != nil {
-		// FIXME Log error
-		return false
-	} else {
-		return resp.StatusCode == 200
-	}
+	return self.Put(index, nil, func(resp *http.Response) error {
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return nil
+		}
+	}) == nil
 }
 
 func (self *Server) CreateIndexWithSettings(index string, settings io.Reader) bool {
-	if resp, err := self.Put(index, settings); err != nil {
-		// FIXME Log error
-		return false
-	} else {
-		return resp.StatusCode == 200
-	}
+	return self.Put(index, settings, func(resp *http.Response) error {
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return nil
+		}
+	}) == nil
 }
 
 func (self *Server) DeleteIndex(index string) bool {
 
-	if resp, err := self.Delete(index); err != nil {
-		// FIXME Log error
-		return false
-	} else {
-		return resp.StatusCode == 200
-	}
+	return self.Delete(index, func(resp *http.Response) error {
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return nil
+		}
+	}) == nil
 }
 
 type Document struct {
@@ -176,12 +199,15 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 func (self *Server) PutDocument(index string, doctype string, id string, doc io.Reader) bool {
 	cmd := fmt.Sprintf("%s/%s/%s", index, doctype, id)
 
-	if resp, err := self.Post(cmd, doc); err != nil {
-		// FIXME Log error
-		return false
-	} else {
-		return resp.StatusCode == 200 || resp.StatusCode == 201
-	}
+	err := self.Put(cmd, doc, func(resp *http.Response) error {
+		if resp.StatusCode != 200 && resp.StatusCode != 201 {
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		} else {
+			return nil
+		}
+	})
+
+	return err == nil
 }
 
 func (self *Server) GetDocument(index string, doctype string, id string) *Document {
@@ -190,7 +216,7 @@ func (self *Server) GetDocument(index string, doctype string, id string) *Docume
 
 func (self *Server) GetDocumentFields(index string, doctype string, id string, fields string) *Document {
 	var cmd string
-	doc := &Document{Type: doctype, Id: id, Exists: false}
+	var doc *Document
 
 	if fields == "" {
 		cmd = fmt.Sprintf("%s/%s/%s", index, doctype, id)
@@ -198,22 +224,19 @@ func (self *Server) GetDocumentFields(index string, doctype string, id string, f
 		cmd = fmt.Sprintf("%s/%s/%s?fields=%s", index, doctype, id, fields)
 	}
 
-	if resp, err := self.Get(cmd); err != nil {
-		// FIXME Log error
-		return nil
-	} else {
-		defer resp.Body.Close()
+	self.Get(cmd, func(resp *http.Response) error {
 		switch resp.StatusCode {
 		case 200:
-			if err := json.NewDecoder(resp.Body).Decode(doc); err != nil {
-				// FIXME Log error
-				return nil
-			}
-			return doc
+			doc = &Document{}
+			return json.NewDecoder(resp.Body).Decode(doc)
 		case 404:
-			return doc
-		default:
+			doc = &Document{Type: doctype, Id: id, Exists: false}
 			return nil
+		default:
+			return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
 		}
-	}
+	})
+
+	// fmt.Printf("Returning doc %s\n", *doc)
+	return doc
 }
