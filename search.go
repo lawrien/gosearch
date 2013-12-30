@@ -24,6 +24,14 @@ type Search struct {
 	Offset int     `json:"from,omitempty"`
 	Limit  int     `json:"size,omitempty"`
 	Fields string  `json:"fields,omitempty"`
+	query  *Query
+}
+
+func (self *Search) Query() *Query {
+	if self.query == nil {
+		self.query = &Query{}
+	}
+	return self.query
 }
 
 func (self *Search) Run() *SearchResults {

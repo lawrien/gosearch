@@ -153,6 +153,7 @@ func (s *ServerSuite) TestSearch(c *C) {
 	search.Index = "test_index"
 	search.Limit = 5
 	r := search.Run()
-	fmt.Printf("Search => %s\n", r)
+	bytes, _ := json.Marshal(r)
+	fmt.Printf("Search => %s\n", string(bytes))
 	// server.DeleteIndex("test_index")
 }

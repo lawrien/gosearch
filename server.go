@@ -184,6 +184,7 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
 			return err
 		}
+		fmt.Printf("Version => %d\n", self.Version)
 	}
 
 	if _, ok := objmap["exists"]; ok {
