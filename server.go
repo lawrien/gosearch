@@ -168,27 +168,35 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if err := json.Unmarshal(*objmap["_type"], &self.Type); err != nil {
-		return err
+	if _, ok := objmap["_type"]; ok {
+		if err := json.Unmarshal(*objmap["_type"], &self.Type); err != nil {
+			return err
+		}
 	}
 
-	if err := json.Unmarshal(*objmap["_id"], &self.Id); err != nil {
-		return err
+	if _, ok := objmap["_id"]; ok {
+		if err := json.Unmarshal(*objmap["_id"], &self.Id); err != nil {
+			return err
+		}
 	}
 
-	if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
-		return err
+	if _, ok := objmap["_version"]; ok {
+		if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
+			return err
+		}
 	}
 
-	if err := json.Unmarshal(*objmap["exists"], &self.Exists); err != nil {
-		return err
+	if _, ok := objmap["exists"]; ok {
+		if err := json.Unmarshal(*objmap["exists"], &self.Exists); err != nil {
+			return err
+		}
 	}
 
 	if _, ok := objmap["_source"]; ok {
 		if err := json.Unmarshal(*objmap["_source"], &self.Source); err != nil {
 			return err
 		}
-	} else {
+	} else if _, ok := objmap["fields"]; ok {
 		if err := json.Unmarshal(*objmap["fields"], &self.Source); err != nil {
 			return err
 		}
@@ -239,4 +247,9 @@ func (self *Server) GetDocumentFields(index string, doctype string, id string, f
 
 	// fmt.Printf("Returning doc %s\n", *doc)
 	return doc
+}
+
+func (self *Server) Search() *Search {
+	s := &Search{Server: self}
+	return s
 }

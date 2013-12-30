@@ -139,3 +139,20 @@ func (s *ServerSuite) TestGetDocumentFields(c *C) {
 	fmt.Printf("Document => %s\n", string(bytes))
 	server.DeleteIndex("test_index")
 }
+
+func (s *ServerSuite) TestSearch(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
+
+	server.CreateIndex("test_index")
+	for i := 1; i < 20; i++ {
+		server.PutDocument("test_index", "person", fmt.Sprintf("%d", i), strings.NewReader(doc))
+	}
+
+	search := server.Search()
+	search.Index = "test_index"
+	search.Limit = 5
+	r := search.Run()
+	fmt.Printf("Search => %s\n", r)
+	// server.DeleteIndex("test_index")
+}
