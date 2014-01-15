@@ -27,6 +27,11 @@ type Search struct {
 	query  *Query
 }
 
+type Query struct {
+	Must    []map[string]interface{}
+	MustNot []map[string]interface{}
+}
+
 func (self *Search) Query() *Query {
 	if self.query == nil {
 		self.query = &Query{}
