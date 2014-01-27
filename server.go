@@ -47,7 +47,7 @@ func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, ad
 }
 
 var tr = &http.Transport{
-	DisableKeepAlives:   true,
+	DisableKeepAlives:   false,
 	MaxIdleConnsPerHost: MAX_CONNECTIONS * 2,
 	Dial:                timeoutDialer(time.Second, CONN_TIMEOUT),
 }
