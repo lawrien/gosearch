@@ -83,6 +83,7 @@ func (self *Server) DeleteIndex(index string) error {
 }
 
 type Document struct {
+	Index   string
 	Type    string
 	Id      string
 	Version float64
@@ -95,6 +96,12 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 
 	if err := json.Unmarshal(data, &objmap); err != nil {
 		return err
+	}
+
+	if _, ok := objmap["_index"]; ok {
+		if err := json.Unmarshal(*objmap["_index"], &self.Index); err != nil {
+			return err
+		}
 	}
 
 	if _, ok := objmap["_type"]; ok {
@@ -113,7 +120,6 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
 			return err
 		}
-		fmt.Printf("Version => %d\n", self.Version)
 	}
 
 	if _, ok := objmap["exists"]; ok {
@@ -134,7 +140,7 @@ func (self *Document) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (self *Server) PutDocument(index string, doctype string, id string, doc io.Reader) error {
+func (self *Server) PutDocument(index string, doctype string, id string, doc interface{}) error {
 	cmd := fmt.Sprintf("%s/%s/%s/%s", self.url, index, doctype, id)
 
 	if resp, err := DefaultConnectionPool.Do(PUT, cmd, doc); err != nil {
@@ -152,7 +158,6 @@ func (self *Server) GetDocument(index string, doctype string, id string) (*Docum
 
 func (self *Server) GetDocumentFields(index string, doctype string, id string, fields string) (*Document, error) {
 	var cmd string
-	var doc *Document
 
 	if fields == "" {
 		cmd = fmt.Sprintf("%s/%s/%s/%s", self.url, index, doctype, id)
@@ -163,19 +168,18 @@ func (self *Server) GetDocumentFields(index string, doctype string, id string, f
 	if resp, err := DefaultConnectionPool.Do(GET, cmd, nil); err != nil {
 		return nil, err
 	} else if resp.Status == 200 {
-		doc = &Document{}
+		doc := &Document{}
 		err = resp.Convert(doc)
-		fmt.Printf("Loaded doc => %s\n", *doc)
 		return doc, err
 	} else if resp.Status == 404 {
-		doc = &Document{Type: doctype, Id: id, Exists: false}
+		doc := &Document{Type: doctype, Id: id, Exists: false}
 		return doc, nil
 	} else {
 		return nil, fmt.Errorf("%d: Unable to get document %s from index %s.", resp.Status, id, index)
 	}
 }
 
-// func (self *Server) Search() *Search {
-// 	s := &Search{Server: self}
-// 	return s
-// }
+func (self *Server) Search() *Search {
+	s := &Search{Server: self}
+	return s
+}

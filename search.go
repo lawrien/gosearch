@@ -1,10 +1,10 @@
 package gosearch
 
 import (
-// "bytes"
-// "encoding/json"
-// "fmt"
-// "net/http"
+	// "bytes"
+	// "encoding/json"
+	"fmt"
+	// "net/http"
 )
 
 type SearchResults struct {
@@ -39,29 +39,23 @@ func (self *Search) Query() *Query {
 	return self.query
 }
 
-// func (self *Search) Run() *SearchResults {
-// 	var cmd string
+func (self *Search) Run() (*SearchResults, error) {
+	var cmd string
 
-// 	if self.Type != "" {
-// 		cmd = fmt.Sprintf("%s/%s/_search", self.Index, self.Type)
-// 	} else {
-// 		cmd = fmt.Sprintf("%s/_search", self.Index)
-// 	}
+	if self.Type != "" {
+		cmd = fmt.Sprintf("%s/%s/%s/_search", self.Server.url, self.Index, self.Type)
+	} else {
+		cmd = fmt.Sprintf("%s/%s/_search", self.Server.url, self.Index)
+	}
 
-// 	var results *SearchResults
+	if resp, err := DefaultConnectionPool.Do(GET, cmd, self); err != nil {
+		return nil, err
+	} else if resp.Status == 200 {
+		results := &SearchResults{}
+		err = resp.Convert(results)
+		return results, err
+	} else {
+		return nil, fmt.Errorf("%d: Unable to get results from indexes %s.", resp.Status, self.Index)
+	}
 
-// 	if searchJson, err := json.Marshal(self); err != nil {
-// 		// FIXME log error
-// 	} else {
-// 		self.Server.Post(cmd, bytes.NewReader(searchJson), func(resp *http.Response) error {
-// 			if resp.StatusCode == 200 {
-// 				results = &SearchResults{}
-// 				return json.NewDecoder(resp.Body).Decode(results)
-// 			} else {
-// 				return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
-// 			}
-// 		})
-// 	}
-// 	return results
-
-// }
+}

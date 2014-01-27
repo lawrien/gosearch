@@ -81,7 +81,7 @@ func (s *ServerSuite) TestCreateDocument(c *C) {
 	server.CreateIndex("test_index")
 	c.Assert(server.HasIndex("test_index"), IsNil)
 
-	err := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
+	err := server.PutDocument("test_index", "person", "1", doc)
 	c.Assert(err, IsNil)
 
 	server.DeleteIndex("test_index")
@@ -97,7 +97,7 @@ func (s *ServerSuite) TestGetDocumentSource(c *C) {
 	c.Assert(server.HasIndex("test_index"), IsNil)
 
 	fmt.Printf("Putting document\n")
-	err := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
+	err := server.PutDocument("test_index", "person", "1", doc)
 	c.Assert(err, IsNil)
 
 	if doc, err := server.GetDocument("test_index", "person", "1"); err != nil {
@@ -108,58 +108,67 @@ func (s *ServerSuite) TestGetDocumentSource(c *C) {
 		bytes, _ := json.Marshal(doc)
 		fmt.Printf("Document => %s\n", string(bytes))
 	}
-	// server.DeleteIndex("test_index")
+	server.DeleteIndex("test_index")
 }
 
-// func (s *ServerSuite) BenchmarkGetDocumentSource(c *C) {
-// 	doc := `{ "name":"George", "age":25 }`
-// 	server := ConnectURL("http://localhost:9200")
+func (s *ServerSuite) BenchmarkGetDocumentSource(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
 
-// 	server.CreateIndex("benchmark_index")
-// 	server.PutDocument("benchmark_index", "person", "1", strings.NewReader(doc))
+	server.CreateIndex("benchmark_index")
+	server.PutDocument("benchmark_index", "person", "1", doc)
 
-// 	c.ResetTimer()
-// 	for i := 0; i < c.N; i++ {
-// 		d := server.GetDocument("benchmark_index", "person", "1")
-// 		c.Assert(d, NotNil)
-// 		c.Assert(d.Source.(map[string]interface{})["name"], Equals, "George")
-// 	}
-// 	c.StopTimer()
-// 	server.DeleteIndex("benchmark_index")
-// }
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
+		if doc, err := server.GetDocument("benchmark_index", "person", "1"); err != nil {
+			c.Errorf("Unable to load document")
+		} else {
+			c.Assert(doc, NotNil)
+			c.Assert(doc.Source.(map[string]interface{})["name"], Equals, "George")
+		}
+	}
+	c.StopTimer()
+	server.DeleteIndex("benchmark_index")
+}
 
-// func (s *ServerSuite) TestGetDocumentFields(c *C) {
-// 	doc := `{ "name":"George", "age":25 }`
-// 	server := ConnectURL("http://localhost:9200")
+func (s *ServerSuite) TestGetDocumentFields(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
 
-// 	server.CreateIndex("test_index")
-// 	c.Assert(server.HasIndex("test_index"), Equals, true)
+	server.CreateIndex("test_index")
+	c.Assert(server.HasIndex("test_index"), IsNil)
 
-// 	b := server.PutDocument("test_index", "person", "1", strings.NewReader(doc))
-// 	c.Assert(b, Equals, true)
+	c.Assert(server.PutDocument("test_index", "person", "1", doc), IsNil)
 
-// 	d := server.GetDocumentFields("test_index", "person", "1", "name")
-// 	c.Assert(d, NotNil)
-// 	c.Assert(d.Exists, Equals, true)
-// 	bytes, _ := json.Marshal(d)
-// 	fmt.Printf("Document => %s\n", string(bytes))
-// 	server.DeleteIndex("test_index")
-// }
+	if doc, err := server.GetDocumentFields("test_index", "person", "1", "name"); err != nil {
+		c.Errorf("Unable to load document")
+	} else {
+		c.Assert(doc, NotNil)
+		c.Assert(doc.Exists, Equals, true)
+		bytes, _ := json.Marshal(doc)
+		fmt.Printf("Document => %s\n", string(bytes))
+	}
+	server.DeleteIndex("test_index")
+}
 
-// func (s *ServerSuite) TestSearch(c *C) {
-// 	doc := `{ "name":"George", "age":25 }`
-// 	server := ConnectURL("http://localhost:9200")
+func (s *ServerSuite) TestSearch(c *C) {
+	doc := `{ "name":"George", "age":25 }`
+	server := ConnectURL("http://localhost:9200")
 
-// 	server.CreateIndex("test_index")
-// 	for i := 1; i < 20; i++ {
-// 		server.PutDocument("test_index", "person", fmt.Sprintf("%d", i), strings.NewReader(doc))
-// 	}
+	server.CreateIndex("test_search")
+	for i := 1; i < 20; i++ {
+		server.PutDocument("test_search", "person", fmt.Sprintf("%d", i), doc)
+	}
 
-// 	search := server.Search()
-// 	search.Index = "test_index"
-// 	search.Limit = 5
-// 	r := search.Run()
-// 	bytes, _ := json.Marshal(r)
-// 	fmt.Printf("Search => %s\n", string(bytes))
-// 	// server.DeleteIndex("test_index")
-// }
+	search := server.Search()
+	search.Index = "test_search"
+	search.Limit = 5
+	if r, err := search.Run(); err != nil {
+		c.Errorf("Search failed")
+	} else {
+		bytes, _ := json.Marshal(r)
+		fmt.Printf("Search => %s\n", string(bytes))
+	}
+
+	// server.DeleteIndex("test_search")
+}

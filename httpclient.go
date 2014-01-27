@@ -66,10 +66,18 @@ func (self *HttpClientPool) returnClient(client *http.Client) {
 }
 
 func (self *HttpClientPool) Do(method httpVerb, url string, in interface{}) (*Response, error) {
-	content, merr := json.Marshal(in)
-	fmt.Printf("Do Content => %s\n", string(content))
-	if merr != nil {
-		return nil, merr
+	var content []byte
+
+	switch in.(type) {
+	case string:
+		content = []byte(in.(string))
+	case []byte:
+		content = in.([]byte)
+	default:
+		var err error
+		if content, err = json.Marshal(in); err != nil {
+			return nil, fmt.Errorf("Could not marshal content: %s", err)
+		}
 	}
 
 	if req, err := http.NewRequest(string(method), url, bytes.NewReader(content)); err != nil {
