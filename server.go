@@ -1,7 +1,6 @@
 package gosearch
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -80,64 +79,6 @@ func (self *Server) DeleteIndex(index string) error {
 	} else {
 		return nil
 	}
-}
-
-type Document struct {
-	Index   string
-	Type    string
-	Id      string
-	Version float64
-	Exists  bool
-	Source  interface{}
-}
-
-func (self *Document) UnmarshalJSON(data []byte) error {
-	var objmap map[string]*json.RawMessage
-
-	if err := json.Unmarshal(data, &objmap); err != nil {
-		return err
-	}
-
-	if _, ok := objmap["_index"]; ok {
-		if err := json.Unmarshal(*objmap["_index"], &self.Index); err != nil {
-			return err
-		}
-	}
-
-	if _, ok := objmap["_type"]; ok {
-		if err := json.Unmarshal(*objmap["_type"], &self.Type); err != nil {
-			return err
-		}
-	}
-
-	if _, ok := objmap["_id"]; ok {
-		if err := json.Unmarshal(*objmap["_id"], &self.Id); err != nil {
-			return err
-		}
-	}
-
-	if _, ok := objmap["_version"]; ok {
-		if err := json.Unmarshal(*objmap["_version"], &self.Version); err != nil {
-			return err
-		}
-	}
-
-	if _, ok := objmap["exists"]; ok {
-		if err := json.Unmarshal(*objmap["exists"], &self.Exists); err != nil {
-			return err
-		}
-	}
-
-	if _, ok := objmap["_source"]; ok {
-		if err := json.Unmarshal(*objmap["_source"], &self.Source); err != nil {
-			return err
-		}
-	} else if _, ok := objmap["fields"]; ok {
-		if err := json.Unmarshal(*objmap["fields"], &self.Source); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (self *Server) PutDocument(index string, doctype string, id string, doc interface{}) error {
