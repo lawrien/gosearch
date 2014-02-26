@@ -84,6 +84,8 @@ func (self *Server) DeleteIndex(index string) error {
 func (self *Server) PutDocument(index string, doctype string, id string, doc interface{}) error {
 	cmd := fmt.Sprintf("%s/%s/%s/%s", self.url, index, doctype, id)
 
+	// convert doc into json
+
 	if resp, err := DefaultConnectionPool.Do(PUT, cmd, doc); err != nil {
 		return err
 	} else if resp.Status != 200 && resp.Status != 201 {
@@ -120,7 +122,7 @@ func (self *Server) GetDocumentFields(index string, doctype string, id string, f
 	}
 }
 
-func (self *Server) Search() *Search {
+func (self *Server) NewSearch() *Search {
 	s := &Search{Server: self}
 	return s
 }

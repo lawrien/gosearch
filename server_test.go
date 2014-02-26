@@ -160,7 +160,7 @@ func (s *ServerSuite) TestSearch(c *C) {
 		server.PutDocument("test_search", "person", fmt.Sprintf("%d", i), doc)
 	}
 
-	search := server.Search()
+	search := server.NewSearch()
 	search.Index = "test_search"
 	search.Limit = 5
 	if r, err := search.Run(); err != nil {

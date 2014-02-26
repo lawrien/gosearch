@@ -24,19 +24,16 @@ type Search struct {
 	Offset int     `json:"from,omitempty"`
 	Limit  int     `json:"size,omitempty"`
 	Fields string  `json:"fields,omitempty"`
-	query  *Query
+	query  Query
 }
 
 type Query struct {
-	Must    []map[string]interface{}
-	MustNot []map[string]interface{}
+	Must    []map[string]interface{} `json:",omitempty"`
+	MustNot []map[string]interface{} `json:",omitempty"`
 }
 
 func (self *Search) Query() *Query {
-	if self.query == nil {
-		self.query = &Query{}
-	}
-	return self.query
+	return &self.query
 }
 
 func (self *Search) Run() (*SearchResults, error) {
