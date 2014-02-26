@@ -10,7 +10,7 @@ type Document struct {
 	Id      string
 	Version float64
 	Exists  bool
-	Source  interface{}
+	Source  map[string]interface{}
 }
 
 func (self *Document) UnmarshalJSON(data []byte) error {

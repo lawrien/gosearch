@@ -124,7 +124,7 @@ func (s *ServerSuite) BenchmarkGetDocumentSource(c *C) {
 			c.Errorf("Unable to load document")
 		} else {
 			c.Assert(doc, NotNil)
-			c.Assert(doc.Source.(map[string]interface{})["name"], Equals, "George")
+			c.Assert(doc.Source["name"], Equals, "George")
 		}
 	}
 	c.StopTimer()
