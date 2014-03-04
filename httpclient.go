@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 )
@@ -65,22 +66,25 @@ func (self *HttpClientPool) returnClient(client *http.Client) {
 	self.clients <- client
 }
 
-func (self *HttpClientPool) Do(method httpVerb, url string, in interface{}) (*Response, error) {
-	var content []byte
+func (self *HttpClientPool) Do(method httpVerb, url string, i interface{}) (*Response, error) {
+	var reader io.Reader
 
-	switch in.(type) {
+	switch i.(type) {
+	case io.Reader:
+		reader = i.(io.Reader)
 	case string:
-		content = []byte(in.(string))
+		reader = bytes.NewReader([]byte(i.(string)))
 	case []byte:
-		content = in.([]byte)
+		reader = bytes.NewReader(i.([]byte))
 	default:
-		var err error
-		if content, err = json.Marshal(in); err != nil {
-			return nil, fmt.Errorf("Could not marshal content: %s", err)
+		if b, err := json.Marshal(i); err != nil {
+			return nil, fmt.Errorf("Could not marshal reader: %s", err)
+		} else {
+			reader = bytes.NewReader(b)
 		}
 	}
 
-	if req, err := http.NewRequest(string(method), url, bytes.NewReader(content)); err != nil {
+	if req, err := http.NewRequest(string(method), url, reader); err != nil {
 		return nil, err
 	} else {
 		client := self.getClient()

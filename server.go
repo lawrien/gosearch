@@ -41,16 +41,15 @@ func (self *Server) Status() (*Status, error) {
 	}
 }
 
-func (self *Server) HasIndex(index string) error {
+func (self *Server) HasIndex(index string) bool {
 	cmd := fmt.Sprintf("%s/%s", self.url, index)
 
 	if resp, err := DefaultConnectionPool.Do(HEAD, cmd, nil); err != nil {
-		return err
+		return false
 	} else if resp.Status != 200 {
-		return fmt.Errorf("%d: Index %s not found.", resp.Status, index)
-	} else {
-		return nil
+		return false
 	}
+	return true
 }
 
 func (self *Server) CreateIndex(index string) error {
@@ -63,8 +62,10 @@ func (self *Server) CreateIndexWithSettings(index string, settings io.Reader) er
 	if resp, err := DefaultConnectionPool.Do(PUT, cmd, settings); err != nil {
 		return err
 	} else if resp.Status != 200 {
+		fmt.Printf("body => %s\n", string(resp.Body))
 		return fmt.Errorf("%d: Unable to create index %s.", resp.Status, index)
 	} else {
+		fmt.Printf("body => %s\n", string(resp.Body))
 		return nil
 	}
 }
