@@ -25,15 +25,27 @@ type Search struct {
 	Limit  int     `json:"size,omitempty"`
 	Fields string  `json:"fields,omitempty"`
 	query  Query
+	filter Filter
 }
 
 type Query struct {
 	Must    []map[string]interface{} `json:",omitempty"`
 	MustNot []map[string]interface{} `json:",omitempty"`
+	Should  []map[string]interface{} `json:",omitempty"`
 }
 
 func (self *Search) Query() *Query {
 	return &self.query
+}
+
+type Filter struct {
+	Must    []map[string]interface{} `json:",omitempty"`
+	MustNot []map[string]interface{} `json:",omitempty"`
+	Should  []map[string]interface{} `json:",omitempty"`
+}
+
+func (self *Search) Filter() *Filter {
+	return &self.filter
 }
 
 func (self *Search) Run() (*SearchResults, error) {

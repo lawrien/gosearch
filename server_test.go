@@ -163,6 +163,8 @@ func (s *ServerSuite) TestSearch(c *C) {
 	search := server.NewSearch()
 	search.Index = "test_search"
 	search.Limit = 5
+	search.Query().Must["name"] = "george"
+
 	if r, err := search.Run(); err != nil {
 		c.Errorf("Search failed")
 	} else {
