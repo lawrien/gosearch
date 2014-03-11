@@ -2,7 +2,7 @@ package gosearch
 
 import (
 	// "bytes"
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
 	// "net/http"
 )
@@ -17,35 +17,38 @@ type SearchResults struct {
 	} `json:"hits"`
 }
 
+type JSON map[string]interface{}
+
 type Search struct {
-	Server *Server `json:"-"`
-	Index  string  `json:"-"`
-	Type   string  `json:"-"`
-	Offset int     `json:"from,omitempty"`
-	Limit  int     `json:"size,omitempty"`
-	Fields string  `json:"fields,omitempty"`
-	query  Query
-	filter Filter
+	Server *Server
+	Index  string
+	Type   string
+	Offset int
+	Limit  int
+	Fields string
+	Query  JSON
+	Filter JSON
 }
 
-type Query struct {
-	Must    []map[string]interface{} `json:",omitempty"`
-	MustNot []map[string]interface{} `json:",omitempty"`
-	Should  []map[string]interface{} `json:",omitempty"`
-}
+func (self *Search) MarshalJSON() ([]byte, error) {
+	var js = JSON{}
+	if self.Offset != 0 {
+		js["from"] = self.Offset
+	}
+	if self.Limit != 0 {
+		js["size"] = self.Limit
+	}
+	if self.Fields != "" {
+		js["fields"] = self.Fields
+	}
 
-func (self *Search) Query() *Query {
-	return &self.query
-}
+	if len(self.Filter) > 0 {
+		js["filtered"] = JSON{"query": self.Query, "filter": self.Filter}
+	} else {
+		js["query"] = self.Query
+	}
 
-type Filter struct {
-	Must    []map[string]interface{} `json:",omitempty"`
-	MustNot []map[string]interface{} `json:",omitempty"`
-	Should  []map[string]interface{} `json:",omitempty"`
-}
-
-func (self *Search) Filter() *Filter {
-	return &self.filter
+	return json.Marshal(js)
 }
 
 func (self *Search) Run() (*SearchResults, error) {

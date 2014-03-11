@@ -155,15 +155,17 @@ func (s *ServerSuite) TestSearch(c *C) {
 	doc := `{ "name":"George", "age":25 }`
 	server := ConnectURL("http://localhost:9200")
 
-	server.CreateIndex("test_search")
-	for i := 1; i < 20; i++ {
-		server.PutDocument("test_search", "person", fmt.Sprintf("%d", i), doc)
+	if !server.HasIndex("test_search") {
+		server.CreateIndex("test_search")
+		for i := 1; i < 20; i++ {
+			server.PutDocument("test_search", "person", fmt.Sprintf("%d", i), doc)
+		}
 	}
 
 	search := server.NewSearch()
 	search.Index = "test_search"
 	search.Limit = 5
-	search.Query().Must["name"] = "george"
+	search.Query = JSON{"match": JSON{"name": "george"}}
 
 	if r, err := search.Run(); err != nil {
 		c.Errorf("Search failed")
