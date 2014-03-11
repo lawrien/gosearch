@@ -43,8 +43,12 @@ func (self *Search) MarshalJSON() ([]byte, error) {
 	}
 
 	if len(self.Filter) > 0 {
-		js["filtered"] = JSON{"query": self.Query, "filter": self.Filter}
-	} else {
+		if len(self.Query) > 0 {
+			js["filtered"] = JSON{"query": self.Query, "filter": self.Filter}
+		} else {
+			js["filtered"] = JSON{"filter": self.Filter}
+		}
+	} else if len(self.Query) > 0 {
 		js["query"] = self.Query
 	}
 

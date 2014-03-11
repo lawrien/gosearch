@@ -100,6 +100,7 @@ func (self *HttpClientPool) Do(method httpVerb, url string, i interface{}) (*Res
 		if bytes, err := ioutil.ReadAll(resp.Body); err != nil {
 			return nil, err
 		} else {
+			// fmt.Printf("Results => %s\n", bytes)
 			return &Response{Status: resp.StatusCode, Body: bytes}, nil
 		}
 	}
