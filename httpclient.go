@@ -80,7 +80,7 @@ func (self *HttpClientPool) Do(method httpVerb, url string, i interface{}) (*Res
 		if b, err := json.Marshal(i); err != nil {
 			return nil, fmt.Errorf("Could not marshal reader: %s", err)
 		} else {
-			fmt.Printf("Sending : %s\n", string(b))
+			// fmt.Printf("Sending : %s\n", string(b))
 			reader = bytes.NewReader(b)
 		}
 	}
